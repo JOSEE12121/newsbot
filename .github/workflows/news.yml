@@ -1,0 +1,54 @@
+name: Noticias oro, bitcoin y petroleo
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # cada 5 min (GitHub puede retrasarlo)
+  workflow_dispatch:         # botón "Run workflow" para lanzarlo a mano
+
+# Evita que dos ejecuciones se pisen la lista de noticias vistas
+concurrency:
+  group: newsbot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # La lista de noticias ya enviadas (seen.db) se guarda en la caché de Actions
+      - name: Restaurar noticias ya vistas
+        uses: actions/cache/restore@v4
+        with:
+          path: seen.db
+          key: seen-${{ github.run_id }}
+          restore-keys: |
+            seen-
+
+      - name: Buscar y enviar noticias
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          QUIET_START: "1"
+          MAX_AGE_HOURS: "12"
+          ONLY_HIGH_IMPACT: "0"
+        run: python bot.py --once
+
+      - name: Guardar noticias vistas
+        if: always() && hashFiles('seen.db') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: seen.db
+          key: seen-${{ github.run_id }}

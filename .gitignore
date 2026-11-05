@@ -1,0 +1,9 @@
+# Secretos y archivos locales: NUNCA subir
+.env
+.env.*
+!.env.example
+.venv/
+seen.db
+bot.log
+__pycache__/
+*.pyc
